@@ -14,10 +14,9 @@ const createToDoBtn = document.createElement('button');
 createToDoBtn.textContent = 'Create ToDo';
 document.body.append(createToDoBtn);
 
-
+axios.defaults.baseURL = 'https://jsonplaceholder.typicode.com/todos';
 const listEl = document.createElement('ul');
 document.body.append(listEl);
-const BASE_URL = 'https://jsonplaceholder.typicode.com/todos'
 let pageNumber = 1;
 
 
@@ -28,36 +27,54 @@ buttonEl.addEventListener('click', onLoadTodo);
 document.body.append(buttonEl);
 
 const getTodos = () => { 
-  const searchParams = new URLSearchParams({
-    _limit: 40,
-    _page: pageNumber,
-  })
+  // const searchParams = new URLSearchParams({
+  //   _limit: 40,
+  //   _page: pageNumber,
+  // })
 
-    return fetch(`${BASE_URL}?${searchParams}`)
-        .then(response => response.json())
+    return axios.get('/', {
+      params: {
+        _limit: 40,
+        _page: pageNumber
+      }
+    })
 }
 
-function onLoadTodo() {
+async function onLoadTodo() {
   buttonEl.disabled = true;
   if (pageNumber === 1) {
     buttonEl.textContent = 'Load more';
   }
 
-  getTodos()
-  .then(todoArray => {
-    if (todoArray.length === 0) {
-      buttonEl.style.display = 'none';
-      Notiflix.Notify.failure('Nothing to load')
-      throw new Error("Limit error");
-    }
-    return todoArray;
-  })
-    .then(renderMarkup)
-    .catch(console.info)
-    .finally(() => {
+  try {
+    const { data } = await getTodos();
+
+    if (data.length === 0) {
+          buttonEl.style.display = 'none';
+          Notiflix.Notify.failure('Nothing to load')
+          throw new Error("Limit error");
+        }
+    renderMarkup(data)
+
+  }catch(err) {console.log(err)}
+  finally {
       pageNumber += 1;
       buttonEl.disabled = false;
-    });
+  }
+  // .then(todoArray => {
+  //   if (todoArray.length === 0) {
+  //     buttonEl.style.display = 'none';
+  //     Notiflix.Notify.failure('Nothing to load')
+  //     throw new Error("Limit error");
+  //   }
+  //   return todoArray;
+  // })
+    // .then(renderMarkup)
+    // .catch(console.info)
+    // .finally(() => {
+    //   pageNumber += 1;
+    //   buttonEl.disabled = false;
+    // });
 }
 
 function renderMarkup(todosArray, position = 'beforeend') {
@@ -153,23 +170,20 @@ function onDelete({ target }) {
   });
 }
 
-function onToDoUpdate(id, completed, target) {
-  fetch(`${BASE_URL}/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
+async function onToDoUpdate(id, completed, target) {
+  try {
+  return await axios.patch(id, {
       completed,
-    }),
-    headers: {
-        'Content-type': 'application/json; charset=UTF-8',
-    }
-  }).finally(() => target.disabled = false)
+    })
+  }
+  finally {
+    target.disabled = false
+  }
 }
 
 
 function onToDoDelete(id) {
-  return fetch(`${BASE_URL}/${id}`, {
-    method: 'DELETE',
-  })
+  return axios.delete(id)
 }
 
 
@@ -181,16 +195,14 @@ function onToDoDelete(id) {
 // },
 
 function createToDoFetch (title) {
- return fetch(`${BASE_URL}`, {
-    method: 'POST',
-    body: JSON.stringify({userId: 1, title, completed: false}),
-    headers: {
-      'Content-type': 'application/json; charset=UTF-8',
-    }
-  }).then(data => data.json())
+ return axios.post('/', {
+      userId: 1, 
+      title, 
+      completed: false
+  })
 }
 
-function onClickCreateToDo (event) {
+async function onClickCreateToDo (event) {
   const value = inputUserToDo.value.trim();
 
   if(!value) {
@@ -200,15 +212,25 @@ function onClickCreateToDo (event) {
 
   event.target.disabled = true;
 
-  createToDoFetch(value)
-    .then(res => {
-      renderMarkup([res], 'afterbegin')
-      Notiflix.Notify.success('ToDo was added!');
-    })
-    .finally(() => {
-      event.target.disabled = false;
-      inputUserToDo.value = '';
-    })
+  try {
+    const response = await createToDoFetch(value)
+    renderMarkup([response.data], 'afterbegin')
+    Notiflix.Notify.success('ToDo was added!');
+  }
+  finally {
+    event.target.disabled = false;
+    inputUserToDo.value = '';
+  }
+  
+  // createToDoFetch(value)
+  //   .then(res => {
+  //     renderMarkup([res], 'afterbegin')
+  //     Notiflix.Notify.success('ToDo was added!');
+  //   })
+  //   .finally(() => {
+  //     event.target.disabled = false;
+  //     inputUserToDo.value = '';
+  //   })
 }
 
 createToDoBtn.addEventListener('click', onClickCreateToDo)
